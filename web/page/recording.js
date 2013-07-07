@@ -277,7 +277,11 @@
 				
 				div.insert(new Element('span', { className: 'stat' }).insert('録画中'));
 				
-				div.insert(new Element('span', { className: 'title' }).insert(program.title));
+				if (app.query.detail) {
+					div.insert(new Element('span', { className: 'title' }).insert(program.fullTitle));
+				} else {
+					div.insert(new Element('span', { className: 'title' }).insert(program.title));
+				}
 				
 				div.insert(new Element('span', { className: 'pgid' }).insert(
 					'#' + program.id
