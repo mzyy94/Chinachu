@@ -215,16 +215,6 @@ function getEpg() {
 		
 		var channel = channels[i];
 		
-		// ch限定
-		if (opts.get('ch')) {
-			if (opts.get('ch') !== channel.channel) {
-				reuse();
-				process.nextTick(callback);
-				
-				return;
-			}
-		}
-		
 		util.log(JSON.stringify(channel));
 		
 		// チェック
@@ -272,6 +262,16 @@ function getEpg() {
 				
 				return;
 		}//<-- switch
+		
+		// ch限定
+		if (opts.get('ch')) {
+			if (opts.get('ch') !== channel.channel) {
+				reuse();
+				process.nextTick(callback);
+				
+				return;
+			}
+		}
 		
 		// epgdump
 		var dumpEpg = function() {
@@ -325,6 +325,13 @@ function getEpg() {
 							util.log('EPG: パースに失敗 (result=null)');
 							process.nextTick(retry);
 							
+							return;
+						}
+
+						if (result.tv.channel === undefined) {
+							util.log('EPG: データが空 (result.tv.channel is undefined)');
+							process.nextTick(retry);
+
 							return;
 						}
 						
@@ -552,7 +559,7 @@ function getEpg() {
 			var fstat = fs.statSync(load);
 			
 			var readStream = fs.createReadStream(load, {
-				start: Math.max(fstat.size - 1000 * 1000 * 120, 0),
+				start: Math.max(fstat.size - 1000 * 1000 * 150, 0),
 				end  : fstat.size
 			});
 			readStream.on('error', function(err) {
@@ -598,7 +605,7 @@ function getEpg() {
 			var recCmd = tuner.command.replace('<channel>', channel.channel);
 			
 			// recpt1用
-			recCmd = recCmd.replace(' --b25', '').replace('<sid>', 'epg');
+			recCmd = recCmd.replace(' --b25', '').replace(' --strip', '').replace('<sid>', 'epg');
 			
 			// 録画プロセスを生成
 			var recProc = child_process.spawn(recCmd.split(' ')[0], recCmd.replace(/[^ ]+ /, '').split(' '));
@@ -766,6 +773,9 @@ function scheduler() {
 	}
 	for (var i = 0; i < matches.length; i++) {
 		var a = matches[i];
+
+		if (a.isDuplicate) continue;
+
 		a.isConflict = true;
 		
 		for (var k = 0; k < config.tuners.length; k++) {
