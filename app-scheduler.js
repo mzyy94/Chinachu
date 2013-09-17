@@ -64,14 +64,27 @@ opts.parse([
 
 // 設定の読み込み
 var config   = require(CONFIG_FILE);
-var rules    = JSON.parse( fs.readFileSync(RULES_FILE,         { encoding: 'utf8' }) || '[]' );
-var reserves = JSON.parse( fs.readFileSync(RESERVES_DATA_FILE, { encoding: 'utf8' }) || '[]' );
+var rules    = JSON.parse( fs.readFileSync(RULES_FILE, { encoding: 'utf8' }) || '[]' );
+var reserves = null;//まだ読み込まない
 
 // チャンネルリスト
 var channels = JSON.parse(JSON.stringify(config.channels));
 
 // スケジュール
-var schedule = (fs.existsSync(SCHEDULE_DATA_FILE)) ? require(SCHEDULE_DATA_FILE) : [];
+var schedule = [];
+if (fs.existsSync(SCHEDULE_DATA_FILE)) {
+	try {
+		schedule = JSON.parse(fs.readFileSync(SCHEDULE_DATA_FILE, { encoding: 'utf8' }));
+		
+		if (schedule instanceof Array === false) {
+			util.log('WARNING: `' + SCHEDULE_DATA_FILE + '`の内容が不正です');
+			schedule = [];
+		}
+	} catch (e) {
+		util.log('WARNING: `' + SCHEDULE_DATA_FILE + '`のロードに失敗しました');
+		schedule = [];
+	}
+}
 
 // EPGデータを取得または番組表を読み込む
 if (opts.get('f') || schedule.length === 0) {
@@ -199,7 +212,7 @@ function getEpg() {
 			--residue;
 			
 			// 取得あきらめる
-			if (residue <= 0) {
+			if (residue <= 0 || opts.get('l')) {
 				reuse();
 				
 				// おわり
@@ -559,7 +572,7 @@ function getEpg() {
 			var fstat = fs.statSync(load);
 			
 			var readStream = fs.createReadStream(load, {
-				start: Math.max(fstat.size - 1000 * 1000 * 150, 0),
+				start: Math.max(fstat.size - 1000 * 1000 * 100, 0),
 				end  : fstat.size
 			});
 			readStream.on('error', function(err) {
@@ -588,7 +601,14 @@ function getEpg() {
 			}
 			
 			// チューナーをロック
-			chinachu.lockTunerSync(tuner);
+			try {
+				chinachu.lockTunerSync(tuner);
+			} catch (e) {
+				util.log('WARNING: チューナー(' + tuner.n + ')のロックに失敗しました');
+				process.nextTick(retry);
+				
+				return;
+			}
 			util.log('LOCK: ' + tuner.name + ' (n=' + tuner.n + ')');
 			
 			var unlockTuner = function _unlockTuner() {
@@ -702,6 +722,8 @@ function getEpg() {
 function scheduler() {
 	util.log('RUNNING SCHEDULER.');
 	
+	reserves = JSON.parse( fs.readFileSync(RESERVES_DATA_FILE, { encoding: 'utf8' }) || '[]' );//読み込む
+	
 	var typeNum = {};
 	
 	config.tuners.forEach(function(tuner) {
@@ -728,7 +750,19 @@ function scheduler() {
 	});
 	
 	reserves.forEach(function(reserve) {
-		if (reserve.isManualReserved) matches.push(reserve);
+		if (reserve.isManualReserved) {
+			matches.push(reserve);
+			return;
+		}
+		if (reserve.isSkip) {
+			for (var i = 0, l = matches.length; i < l; i++) {
+				if (matches[i].id === reserve.id) {
+					matches[i].isSkip = true;
+					break;
+				}
+			}
+			return;
+		}
 	});
 	
 	// sort
@@ -744,7 +778,7 @@ function scheduler() {
 		for (var j = 0; j < matches.length; j++) {
 			var b = matches[j];
 			
-			if (b.isDuplicate) continue;
+			if (b.isDuplicate || b.isSkip) continue;
 			
 			if (a.id === b.id) continue;
 			if (a.channel.type !== b.channel.type) continue;
@@ -774,7 +808,7 @@ function scheduler() {
 	for (var i = 0; i < matches.length; i++) {
 		var a = matches[i];
 
-		if (a.isDuplicate) continue;
+		if (a.isDuplicate || a.isSkip) continue;
 
 		a.isConflict = true;
 		
@@ -852,10 +886,11 @@ function convertPrograms(p, ch) {
 		var title = c.title[0]._
 			.replace(/【.{1,2}】/g, '')
 			.replace(/\[.\]/g, '')
-			.replace(/([^版])「.+」/g, '$1')
+			.replace(/([^場版])「.+」/g, '$1')
 			.replace(/(#[0-9]+|(＃|♯)[０１２３４５６７８９]+)/g, '')
 			.replace(/第([0-9]+|[０１２３４５６７８９零一壱二弐三参四五伍六七八九十拾]+)話/g, '')
 			.replace(/([0-9]+|[０１２３４５６７８９]+)品目/g, '')
+			.replace(/喪([0-9]+|[０１２３４５６７８９]+)/g, '')
 			.trim();
 		
 		var desc = c.desc[0]._ || '';
@@ -881,7 +916,7 @@ function convertPrograms(p, ch) {
 		if (flags.indexOf('新') !== -1) {
 			episodeNumber = 1;
 		} else {
-			var episodeNumberMatch = (c.title[0]._ + desc).match(/(#[0-9]+|(＃|♯)[０１２３４５６７８９]+|第([0-9]+|[０１２３４５６７８９零一二三四五六七八九十]+)話)|([0-9]+|[０１２３４５６７８９]+)品目|Episode ?[IⅡⅢⅣⅤⅥⅦⅧⅨⅩⅪⅫVX]+/);
+			var episodeNumberMatch = (c.title[0]._ + desc).match(/(#[0-9]+|(＃|♯)[０１２３４５６７８９]+|第([0-9]+|[０１２３４５６７８９零一二三四五六七八九十]+)話)|([0-9]+|[０１２３４５６７８９]+)品目|喪([0-9]+|[０１２３４５６７８９]+)|Episode ?[IⅡⅢⅣⅤⅥⅦⅧⅨⅩⅪⅫVX]+/);
 			if (episodeNumberMatch !== null) {
 				var episodeNumberString = episodeNumberMatch[0];
 				
@@ -891,6 +926,7 @@ function convertPrograms(p, ch) {
 					.replace('♯', '')
 					.replace('第', '')
 					.replace('話', '')
+					.replace('喪', '')
 					.replace('品目', '')
 					.replace('Ｅｐｉｓｏｄｅ', '')
 					.replace('Episode', '')
@@ -954,7 +990,7 @@ function convertPrograms(p, ch) {
 		var endTime   = endDate.getTime();
 		
 		var programData = {
-			id        : ch.id.toLowerCase().replace('_', '') + '-' + (startTime / 1000).toString(32),
+			id        : ch.id.toLowerCase().replace('_', '') + '-' + parseInt(c.$.event_id, 10).toString(32),
 			channel   : ch,
 			category  : c.category[1]._,
 			title     : title,
@@ -1044,7 +1080,7 @@ function isMatchedProgram(program) {
 		// ignore_titles
 		if (rule.ignore_titles) {
 			for (var i = 0; i < rule.ignore_titles.length; i++) {
-				if (program.title.match(rule.ignore_titles[i]) !== null) return;
+				if (program.fullTitle.match(rule.ignore_titles[i]) !== null) return;
 			}
 		}
 		
@@ -1053,7 +1089,7 @@ function isMatchedProgram(program) {
 			var isFound = false;
 			
 			for (var i = 0; i < rule.reserve_titles.length; i++) {
-				if (program.title.match(rule.reserve_titles[i]) !== null) isFound = true;
+				if (program.fullTitle.match(rule.reserve_titles[i]) !== null) isFound = true;
 			}
 			
 			if (!isFound) return;

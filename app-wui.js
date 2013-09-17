@@ -39,10 +39,20 @@ process.on('SIGQUIT', function() {
 	}, 0);
 });
 
+// 例外処理
+process.on('uncaughtException', function (err) {
+	util.error('uncaughtException: ' + err);
+});
+
 // 追加モジュールのロード
 var auth     = require('http-auth');
 var socketio = require('socket.io');
 var chinachu = require('chinachu-common');
+var S        = require('string');
+
+// etc.
+var timer = {};
+var emptyFunction = function(){};
 
 // etc.
 var timer = {};
@@ -53,7 +63,7 @@ var config = require(CONFIG_FILE);
 
 // https or http
 if (config.wuiTlsKeyPath && config.wuiTlsCertPath) {
-	var https = require('https');
+	var spdy = require('spdy');
 	
 	var tlsOption = {
 		key : fs.readFileSync(config.wuiTlsKeyPath),
@@ -173,6 +183,7 @@ if (config.wuiUsers && (config.wuiUsers.length > 0)) {
 	});
 }
 
+// ステータス
 var status = {
 	connectedCount: 0,
 	feature: {
@@ -183,14 +194,89 @@ var status = {
 	},
 	system: {
 		core: os.cpus().length
+	},
+	operator: {
+		alive: false,
+		pid  : null
+	},
+	wui: {
+		alive: false,
+		pid  : null
 	}
 };
+
+// プロセス監視
+function processChecker() {
+	
+	if (io) io.sockets.emit('status', status);
+	
+	var c = chinachu.createCountdown(2, chinachu.createTimeout(processChecker, 3000));
+	
+	if (fs.existsSync('/var/run/chinachu-operator.pid') === true) {
+		fs.readFile('/var/run/chinachu-operator.pid', function(err, pid) {
+			
+			if (err) return c.tick();
+			
+			pid = pid.toString().trim();
+			
+			child_process.exec('ps h -p ' + pid + ' -o %cpu,rss', function(err, stdout) {
+				
+				if (stdout === '') {
+					status.operator.alive = false;
+					status.operator.pid   = null;
+				} else {
+					//stdout = S(stdout.trim()).collapseWhitespace().s;
+					
+					status.operator.alive = true;
+					status.operator.pid   = parseInt(pid, 10);
+				}
+				
+				c.tick();
+			});
+		});
+	} else {
+		status.operator.alive = false;
+		status.operator.pid   = null;
+		
+		c.tick();
+	}
+	
+	if (fs.existsSync('/var/run/chinachu-wui.pid') === true) {
+		fs.readFile('/var/run/chinachu-wui.pid', function(err, pid) {
+			
+			if (err) return c.tick();
+			
+			pid = pid.toString().trim();
+			
+			child_process.exec('ps h -p ' + pid + ' -o %cpu,rss', function(err, stdout) {
+				
+				if (stdout === '') {
+					status.wui.alive = false;
+					status.wui.pid   = null;
+				} else {
+					//stdout = S(stdout.trim()).collapseWhitespace().s;
+					
+					status.wui.alive = true;
+					status.wui.pid   = parseInt(pid, 10);
+				}
+				
+				c.tick();
+			});
+		});
+	} else {
+		status.wui.alive = false;
+		status.wui.pid   = null;
+		
+		c.tick();
+	}
+}
+processChecker();
 
 //
 // http server
 //
-if (http)  { var app = http.createServer(httpServer); }
-if (https) { var app = https.createServer(tlsOption, httpServer); }
+if (http) var app = http.createServer(httpServer);
+if (spdy) var app = spdy.createServer(tlsOption, httpServer);
 
 app.listen(config.wuiPort, (typeof config.wuiHost === 'undefined') ? '::' : config.wuiHost);
 
@@ -286,7 +372,7 @@ function httpServerMain(req, res, query) {
 	}
 	
 	// エラーレスポンス用
-	function resErr(code) {
+	var resErr = function(code) {
 		
 		res.writeHead(code, {'content-type': 'text/plain'});
 		if (req.method !== 'HEAD') {
@@ -367,9 +453,9 @@ function httpServerMain(req, res, query) {
 		}
 		res.end();
 		log(code);
-	}
+	};
 	
-	function writeHead(code) {
+	var writeHead = function(code) {
 		var type = 'text/plain';
 		
 		if (ext === 'html') { type = 'text/html'; }
@@ -402,58 +488,12 @@ function httpServerMain(req, res, query) {
 		};
 		
 		res.writeHead(code, head);
-	}
+	};
 	
 	// ヘッダの確認
 	if (!req.headers['host']) return resErr(400);
 	
-	// 静的ファイルまたはAPIレスポンスの分岐
-	if (req.url.match(/^\/api\/.*$/) === null) {
-		if (fs.existsSync(filename) === false) return resErr(404);
-		
-		if (req.url.match(/^\/apple-.+\.png$/) !== null) {
-			responseStatic();
-		} else if (!basic) {
-			responseStatic();
-		} else {
-			basic.apply(req, res, responseStatic);
-		}
-	} else {
-		if (basic) {
-			if (!!query._auth) {
-				// Base64文字列を取り出す
-				var auths = query._auth.split(':');
-				
-				// バリデーション
-				if (auths[0] !== 'basic' || auths.length !== 2) {
-					return resErr(400);
-				}
-				
-				var auth = decodeURIComponent(auths[1]);
-				
-				// Base64デコード
-				try {
-					auth = new Buffer(auth, 'base64').toString('ascii');
-				} catch (e) {
-					return resErr(401);
-				}
-				
-				// 認証
-				if (config.wuiUsers && config.wuiUsers.indexOf(auth) === -1) {
-					return resErr(401);
-				}
-				
-				// 通ってよし
-				responseApi();
-			} else {
-				basic.apply(req, res, responseApi);
-			}
-		} else {
-			responseApi();
-		}
-	}
-	
-	function responseStatic() {
+	var responseStatic = function() {
 		
 		if (fs.existsSync(filename) === false) return resErr(404);
 		
@@ -503,9 +543,9 @@ function httpServerMain(req, res, query) {
 		} else {
 			res.end();
 		}
-	}
+	};
 	
-	function responseApi() {
+	var responseApi = function() {
 		var dir  = location.replace('/api/', '').replace(/\.[a-z0-9]+$/, '');
 		var dirs = dir.split('/');
 		var addr = dir.replace(/^[^\/]+\/?/, '/');
@@ -668,7 +708,7 @@ function httpServerMain(req, res, query) {
 				if (typeof gc !== 'undefined') {
 					if (timer.gcByApi) clearTimeout(timer.gcByApi);
 					timer.gcByApi = setTimeout(function() {
-						 process.nextTick(gc);
+						process.nextTick(gc);
 					}, 3500);
 				}
 				
@@ -698,6 +738,56 @@ function httpServerMain(req, res, query) {
 		});
 		
 		return;
+	};
+	
+	// 静的ファイルまたはAPIレスポンスの分岐
+	if (req.url.match(/^\/api\/.*$/) === null) {
+		if (fs.existsSync(filename) === false) return resErr(404);
+		
+		if (req.url.match(/^\/apple-.+\.png$/) !== null) {
+			process.nextTick(responseStatic);
+		} else if (!basic) {
+			process.nextTick(responseStatic);
+		} else {
+			basic.apply(req, res, function() {
+				process.nextTick(responseStatic);
+			});
+		}
+	} else {
+		if (basic) {
+			if (!!query._auth) {
+				// Base64文字列を取り出す
+				var auths = query._auth.split(':');
+				
+				// バリデーション
+				if (auths[0] !== 'basic' || auths.length !== 2) {
+					return resErr(400);
+				}
+				
+				var auth = decodeURIComponent(auths[1]);
+				
+				// Base64デコード
+				try {
+					auth = new Buffer(auth, 'base64').toString('ascii');
+				} catch (e) {
+					return resErr(401);
+				}
+				
+				// 認証
+				if (config.wuiUsers && config.wuiUsers.indexOf(auth) === -1) {
+					return resErr(401);
+				}
+				
+				// 通ってよし
+				process.nextTick(responseApi);
+			} else {
+				basic.apply(req, res, function() {
+					process.nextTick(responseApi);
+				});
+			}
+		} else {
+			process.nextTick(responseApi);
+		}
 	}
 }
 
@@ -746,10 +836,7 @@ function ioServer(socket) {
 function ioServerMain(socket) {
 	++status.connectedCount;
 	
-	socket.on('disconnect', function _socketOnDisconnect() {
-		--status.connectedCount;
-		io.sockets.emit('status', status);
-	});
+	socket.on('disconnect', ioServerSocketOnDisconnect);
 	
 	// broadcast
 	io.sockets.emit('status', status);
@@ -761,9 +848,14 @@ function ioServerMain(socket) {
 	socket.emit('recorded', recorded);
 }
 
+function ioServerSocketOnDisconnect() {
+	--status.connectedCount;
+	io.sockets.emit('status', status);
+}
+
 //
 // gc
 //
 if (typeof gc !== 'undefined') {
-	setInterval(gc, 1000 * 60 * 5);
+	setInterval(gc, 1000 * 60 * 2);
 }

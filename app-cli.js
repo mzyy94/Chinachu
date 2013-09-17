@@ -297,6 +297,18 @@ switch (opts.get('mode')) {
 	case 'unreserve':
 		chinachuUnreserve();
 		break;
+	// スキップ
+	case 'skip':
+		chinachuSkip();
+		break;
+	// スキップ解除
+	case 'unskip':
+		chinachuUnskip();
+		break;
+	// 録画中止
+	case 'stop':
+		chinachuStop();
+		break;
 	// Rule
 	case 'rule':
 		chinachuRule();
@@ -400,6 +412,9 @@ function chinachuReserve() {
 	target.isManualReserved = true;
 	
 	reserves.push(target);
+	reserves.sort(function(a, b) {
+		return a.start - b.start;
+	});
 	
 	if (opts.get('simulation')) {
 		util.puts('[simulation] reserve:');
@@ -447,6 +462,107 @@ function chinachuUnreserve() {
 		fs.writeFileSync(RESERVES_DATA_FILE, JSON.stringify(reserves));
 		
 		util.puts('予約を解除しました。 ');
+	}
+	
+	process.exit(0);
+}
+
+// スキップ
+function chinachuSkip() {
+	var target = chinachu.getProgramById(opts.get('id'), reserves);
+	
+	if (target === null) {
+		util.error('見つかりません');
+		process.exit(1);
+	}
+	
+	if (target.isManualReserved) {
+		util.error('手動予約された番組はスキップできません。予約を解除してください。');
+		process.exit(1);
+	}
+	
+	if (target.isSkip) {
+		util.error('既にスキップが有効になっています');
+		process.exit(1);
+	}
+	
+	for (var i = 0, l = reserves.length; i < l; i++) {
+		if (target.id === reserves[i].id) {
+			reserves[i].isSkip = true;
+			break;
+		}
+	}
+	
+	if (opts.get('simulation')) {
+		util.puts('[simulation] skip:');
+		util.puts(JSON.stringify(target, null, '  '));
+	} else {
+		util.puts('skip:');
+		util.puts(JSON.stringify(target, null, '  '));
+		
+		fs.writeFileSync(RESERVES_DATA_FILE, JSON.stringify(reserves));
+		
+		util.puts('スキップを有効にしました');
+	}
+	
+	process.exit(0);
+}
+
+// スキップ解除
+function chinachuUnskip() {
+	var target = chinachu.getProgramById(opts.get('id'), reserves);
+	
+	if (target === null) {
+		util.error('見つかりません');
+		process.exit(1);
+	}
+	
+	if (!target.isSkip) {
+		util.error('既にスキップは解除されています');
+		process.exit(1);
+	}
+	
+	for (var i = 0, l = reserves.length; i < l; i++) {
+		if (target.id === reserves[i].id) {
+			delete reserves[i].isSkip;
+			break;
+		}
+	}
+	
+	if (opts.get('simulation')) {
+		util.puts('[simulation] skip:');
+		util.puts(JSON.stringify(target, null, '  '));
+	} else {
+		util.puts('skip:');
+		util.puts(JSON.stringify(target, null, '  '));
+		
+		fs.writeFileSync(RESERVES_DATA_FILE, JSON.stringify(reserves));
+		
+		util.puts('スキップを解除しました');
+	}
+	
+	process.exit(0);
+}
+
+// 録画中止
+function chinachuStop() {
+	var target = chinachu.getProgramById(opts.get('id'), recording);
+	
+	if (target === null) {
+		util.error('見つかりません');
+		process.exit(1);
+	}
+	
+	if (opts.get('simulation')) {
+		util.puts('[simulation] stop:');
+		util.puts(JSON.stringify(target, null, '  '));
+	} else {
+		util.puts('stop:');
+		util.puts(JSON.stringify(target, null, '  '));
+		
+		process.kill(target.pid, 'SIGTERM');
+		
+		util.puts('録画を停止しました。 ');
 	}
 	
 	process.exit(0);
