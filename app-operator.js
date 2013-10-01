@@ -34,7 +34,7 @@ process.on('SIGQUIT', function () {
 
 // 例外処理
 process.on('uncaughtException', function (err) {
-	util.error('uncaughtException: ' + err);
+	util.error('uncaughtException: ' + err.stack);
 });
 
 // 追加モジュールのロード
@@ -187,7 +187,7 @@ function startScheduler() {
 
 // 録画実行
 function doRecord(program) {
-	var timeout, tuner, recPath, recDirPath, recCmd, recProc, recFile, epgInterval, finalize;
+	var timeout, tuner, recPath, recDirPath, recCmd, recProc, recFile, /*epgInterval, */finalize;
 	
 	util.log('RECORD: ' + dateFormat(new Date(program.start), 'isoDateTime') + ' [' + program.channel.name + '] ' + program.title);
 	
@@ -260,6 +260,7 @@ function doRecord(program) {
 	});
 	
 	// EPG処理
+	/* 廃止: EPGパーサーに再実装予定
 	epgInterval = setInterval(function () {
 		var epgProc, output;
 		
@@ -280,6 +281,7 @@ function doRecord(program) {
 			output.end();
 		});
 	}, 1000 * 300);//300秒
+	*/
 	
 	// お片付け
 	finalize = function () {
@@ -302,7 +304,7 @@ function doRecord(program) {
 		}
 		
 		// EPG処理を終了
-		clearInterval(epgInterval);
+		//clearInterval(epgInterval);
 		
 		// 状態を更新
 		delete program.pid;
@@ -462,19 +464,23 @@ chinachu.jsonWatcher(
 
 // main
 function main() {
-	clock = new Date().getTime();
-	
-	if (reserves.length !== 0) {
-		reserves.forEach(reservesChecker);
-	} else {
-		next = 0;
-	}
-	
-	recording.forEach(recordingChecker);
-	
-	if ((scheduler === null) && (clock - scheduled > schedulerIntervalTime) && ((next === 0) || (next - clock > schedulerProcessTime)) && ((schedulerSleepStartHour > new Date().getHours()) || (schedulerSleepEndHour <= new Date().getHours()))) {
-		startScheduler();
-		scheduled = clock;
+	try {
+		clock = new Date().getTime();
+
+		if (reserves.length !== 0) {
+			reserves.forEach(reservesChecker);
+		} else {
+			next = 0;
+		}
+
+		recording.forEach(recordingChecker);
+
+		if ((scheduler === null) && (clock - scheduled > schedulerIntervalTime) && ((next === 0) || (next - clock > schedulerProcessTime)) && ((schedulerSleepStartHour > new Date().getHours()) || (schedulerSleepEndHour <= new Date().getHours()))) {
+			startScheduler();
+			scheduled = clock;
+		}
+	} catch (e) {
+		util.error('ERROR: ' + e.stack);
 	}
 }
 setInterval(main, 1000);
