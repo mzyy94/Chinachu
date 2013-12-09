@@ -16,7 +16,7 @@ fi
 shopt -s extglob
 
 # variables
-NODE_VER=0.10.18
+NODE_VER=0.10.21
 
 main () {
   local SELF_PATH DIR SYM
@@ -383,7 +383,6 @@ chinachu_installer_libav () {
     --enable-gpl \
     --disable-avplay \
     --disable-avserver \
-    --disable-doc \
     --disable-avdevice \
     --disable-network \
     --disable-devices \
