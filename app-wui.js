@@ -317,8 +317,8 @@ function httpServerMain(req, res, query) {
 		if (ext === 'flv') { type = 'video/x-flv'; }
 		if (ext === 'webm') { type = 'video/webm'; }
 		if (ext === 'm2ts') { type = 'video/MP2T'; }
-		if (ext === 'm3u8') { type = 'video/x-mpegURL'; }
-		if (ext === 'asf') { type = 'video/x-ms-asf'; }
+		if (ext === 'm3u8') { type = 'application/x-mpegURL'; }
+		if (ext === 'asf')  { type = 'video/x-ms-asf'; }
 		if (ext === 'json') { type = 'application/json; charset=utf-8'; }
 		if (ext === 'xspf') { type = 'application/xspf+xml'; }
 		
@@ -348,7 +348,7 @@ function httpServerMain(req, res, query) {
 			return resErr(405);
 		}
 		
-		if (['ico'].indexOf(ext) !== -1) {
+		if (['ico', 'png'].indexOf(ext) !== -1) {
 			res.setHeader('cache-control', 'private, max-age=86400');
 		}
 		
@@ -463,6 +463,10 @@ function httpServerMain(req, res, query) {
 			}/* else if (acceptEncoding.match(/gzip/)) {
 				encoding = 'gzip';
 			}*/
+			
+			if (req.headers['user-agent'] && req.headers['user-agent'].match(/Trident/)) {
+				encoding = '';
+			}
 			
 			var sandbox = {
 				request      : req,

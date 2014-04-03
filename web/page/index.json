@@ -34,7 +34,7 @@
 		"schedule": {
 			"icon"       : "./icons/calendar-medium.png",
 			"label"      : "schedule",
-			"defaultPage": "timeline",
+			"defaultPage": "table",
 			"page"       : {
 				"timeline": {
 					"label": "Timeline",
@@ -42,10 +42,10 @@
 					"icon" : "./icons/calendar-medium.png"
 				},
 				
-				"program": {
-					"label": "Program",
-					"title": "Program",
-					"icon" : "./icons/dummy.png"
+				"table": {
+					"label": "Schedule",
+					"title": "Schedule",
+					"icon" : "./icons/calendar-medium.png"
 				}
 			}
 		},
@@ -139,6 +139,19 @@
 					"icon" : "./icons/film.png"
 				},
 				
+				"watch": {
+					"label": "Watch",
+					"title": "Watch",
+					"icon" : "./icons/film-youtube.png"
+				}
+			}
+		},
+
+		"channel": {
+			"icon"       : "./icons/film.png",
+			"label"      : "channel",
+			"defaultPage": "watch",
+			"page"       : {
 				"watch": {
 					"label": "Watch",
 					"title": "Watch",
