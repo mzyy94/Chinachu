@@ -119,6 +119,19 @@ P = Class.create(P, {
 			});
 		}
 		
+		if (program.start - +new Date < 0 && program.end - +new Date > 0) {
+			this.view.toolbar.add({
+				key: null,
+				ui : new sakura.ui.Button({
+					label   : 'リアルタイム視聴',
+					icon    : './icons/television-medium.png',
+					onClick: function() {
+						new chinachu.ui.WatchOnLive(program.id);
+					}
+				})
+			});
+		}
+		
 		if (program._isRecording) {
 			this.view.toolbar.add({
 				key: null,

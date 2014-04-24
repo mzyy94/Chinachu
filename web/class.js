@@ -1102,6 +1102,69 @@
 		}
 	});
 	
+	ui.WatchOnLive = Class.create({
+		initialize: function _init(id) {
+			this.program = util.getProgramById(id);
+			
+			this.create();
+			
+			return this;
+		},
+		create: function _create() {
+			if (this.program === null) {
+				this.modal = new flagrate.Modal({
+					title: 'エラー',
+					text : '番組が見つかりませんでした'
+				});
+			} else {
+				this.modal = new flagrate.Modal({
+					title   : 'リアルタイム視聴',
+					subtitle: this.program.title + ' #' + this.program.id,
+					text    : 'よろしいですか。',
+					buttons: [
+						{
+							label   : 'UDPストリーミング',
+							color   : '@orange',
+							onSelect: function (e, modal) {
+								e.targetButton.disable();
+								
+								var dummy = new Ajax.Request('./api/live/' + this.program.id + '.json', {
+									method    : 'put',
+									onComplete: function () {
+										modal.close();
+									},
+									onSuccess: function () {
+										new flagrate.Modal({
+											title: '視聴可能',
+											text : 'udp://@:9939 宛に配信開始しました'
+										}).show();
+									},
+									onFailure: function (t) {
+										new flagrate.Modal({
+											title: '失敗',
+											text : 'リアルタイム視聴に失敗しました (' + t.status + ')'
+										}).show();
+									}
+								});
+							}.bind(this)
+						},
+						{
+							label   : 'キャンセル',
+							onSelect: function (e, modal) {
+								modal.close();
+							}
+						}
+					]
+				});
+			}
+			
+			this.modal.show();
+			
+			return this;
+		}
+	});
+	
+	
 	ui.Streamer = Class.create({
 		initialize: function _init(id) {
 			

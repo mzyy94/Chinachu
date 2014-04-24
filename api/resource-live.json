@@ -1,0 +1,17 @@
+{
+  "/": {
+    "script" : "live",
+    "methods": ["get"],
+    "types"  : ["json"]
+  },
+  "/:id": {
+    "script" : "live-program",
+    "methods": ["put", "delete"],
+    "types"  : ["json"]
+  },
+  "/:id/watch": {
+    "script" : "live-program-watch",
+    "methods": ["get", "delete"],
+    "types"  : ["txt", "xspf"]
+  }
+}
