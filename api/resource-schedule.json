@@ -14,7 +14,7 @@
   "/programs": {
     "script" : "schedule-programs",
     "methods": ["get"],
-    "types"  : ["json"]
+    "types"  : ["json", "xml"]
   },
   
   "/broadcasting": {
