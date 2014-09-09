@@ -2,7 +2,7 @@
  *  Chinachu Task Scheduler (chinachu-scheduler)
  *
  *  Copyright (c) 2012 Yuki KAN and Chinachu Project Contributors
- *  http://chinachu.akkar.in/
+ *  https://chinachu.moe/
 **/
 /*jslint node:true, nomen:true, plusplus:true, regexp:true, vars:true, continue:true */
 /*global gc */
@@ -876,7 +876,7 @@ function getEpg() {
 			readStream.pipe(writeStream);
 		} else {
 			// チューナーを選ぶ
-			var tuner = chinachu.getFreeTunerSync(config.tuners, channel.type);
+			var tuner = chinachu.getFreeTunerSync(config.tuners, channel.type, true);
 			
 			// チューナーが見つからない
 			if (tuner === null) {
@@ -913,7 +913,7 @@ function getEpg() {
 			// recpt1用
 			recCmd = recCmd.replace(' --b25', '').replace(' --strip', '').replace('<sid>', 'epg');
 
-			execRecCmd(function() {
+			execRecCmd(function () {
 				// 録画プロセスを生成
 				var recProc = child_process.spawn(recCmd.split(' ')[0], recCmd.replace(/[^ ]+ /, '').split(' '));
 				chinachu.writeTunerPidSync(tuner, recProc.pid);
@@ -934,7 +934,7 @@ function getEpg() {
 				var removeListeners;
 			
 				// プロセスタイムアウト
-				execRecCmd(function() {
+				execRecCmd(function () {
 					recProc.kill('SIGKILL');
 				}, 1000 * (config.schedulerEpgRecordTime || 60), '[' + i + '] KILLWAIT');
 			
@@ -1024,7 +1024,7 @@ function getEpg() {
 		for (i = 0, l = chs.length; i < l; i++) {
 			ch = chs[i];
 			
-			if (!opts.get('ch') && !opts.get('l') && chinachu.getFreeTunerSync(config.tuners, ch.type) === null) {
+			if (!opts.get('ch') && !opts.get('l') && chinachu.getFreeTunerSync(config.tuners, ch.type, true) === null) {
 				continue;
 			}
 			
