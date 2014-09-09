@@ -90,35 +90,40 @@
       "isScrambling": false,
       "types"       : ["BS", "CS"],
       "command"     : "recpt1 --device /dev/pt3video0 --b25 <channel> - -",
-      "group"       : "pt3-01"
+      "group"       : "pt3-01",
+      "isDisabled"  : true
     },
     {
       "name"        : "PT3-S2",
       "isScrambling": false,
       "types"       : ["BS", "CS"],
       "command"     : "recpt1 --device /dev/pt3video1 --b25 <channel> - -",
-      "group"       : "pt3-01"
+      "group"       : "pt3-01",
+      "isDisabled"  : true
     },
     {
       "name"        : "PT3-T1",
       "isScrambling": false,
       "types"       : ["GR"],
       "command"     : "recpt1 --device /dev/pt3video2 --b25 <channel> - -",
-      "group"       : "pt3-01"
+      "group"       : "pt3-01",
+      "isDisabled"  : true
     },
     {
       "name"        : "PT3-T2",
       "isScrambling": false,
       "types"       : ["GR"],
       "command"     : "recpt1 --device /dev/pt3video3 --b25 <channel> - -",
-      "group"       : "pt3-01"
+      "group"       : "pt3-01",
+      "isDisabled"  : true
     },
     {
       "name"        : "FSUSB2",
       "isScrambling": false,
       "types"       : ["GR"],
       "command"     : "recfsusb2n -b <channel> - -",
-      "group"       : "legacy-01"
+      "group"       : "legacy-01",
+      "isDisabled"  : true
     }
   ],
   
@@ -147,7 +152,9 @@
     { "type": "BS", "channel": "211" },
     { "type": "BS", "channel": "222" },
     
-    { "type": "CS", "channel": "CS4",  "sid": "100" },
-    { "type": "CS", "channel": "CS16", "sid": "333" }
+    { "type": "CS", "channel": "CS4",  "sid": "100", "isDisabled": true },
+    { "type": "CS", "channel": "CS16", "sid": "333", "isDisabled": true },
+    
+    { "type": "IR", "name": "RJTT Tokyo Control", "channel": "http://d.liveatc.net/rjtt_control", "isDisabled": true }
   ]
 }
