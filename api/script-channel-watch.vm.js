@@ -180,50 +180,66 @@ todo
 			tunerCommad = tunerCommad.replace('<channel>', channel.channel);
 			// return;
 			util.log('LOCK: LIVE ' + tuner.name + ' (n=' + tuner.n + ')');
-	
 			// var out = fs.openSync('/tmp/chinachu-live', 'a');
 			// var recpt1 = child_process.spawn('recpt1', ['--b25', '--strip', request.param.id, '-', '-']);
 			var recpt1 = child_process.spawn(tunerCommad.split(' ')[0], tunerCommad.replace(/[^ ]+ /, '').split(' '));
 			chinachu.writeTunerPid(tuner, recpt1.pid);
 			// util.log(['--b25', '--strip', request.param.id, '-', '/dev/stdout'].join(' '));
-			var avconv = child_process.spawn('avconv', args);
-			// util.log(args.join(' '));
-			// util.log(util.inspect(recpt1));
-			util.log(args.join(' '));
 			
-			// avconv.stdin.pipe(recpt1.stdout, {end: false});
-			avconv.stdout.pipe(response);
-
-			recpt1.stdout.on('data', function(d) {
-				avconv.stdin.write(d);
-			});
-			recpt1.stderr.on('data', function(d) {
-				util.log(d);
-			});
+			if (d['c:v'] === 'copy' && d['c:a'] === 'copy' && d.ss === '0' && !d.t) {
+				recpt1.stdout.pipe(response);
+				
+				request.on('close', function() {
+					// チューナーのロックを解除
+					try {
+						chinachu.unlockTunerSync(tuner);
+						util.log('UNLOCK: ' + tuner.name + ' (n=' + tuner.n + ')');
+					} catch (e) {
+						util.log(e);
+					}
+				});
+				
+			} else {
+				var avconv = child_process.spawn('avconv', args);
+				// util.log(args.join(' '));
+				// util.log(util.inspect(recpt1));
+				util.log(args.join(' '));
+				
+				// avconv.stdin.pipe(recpt1.stdout, {end: false});
+				avconv.stdout.pipe(response);
+				
+				recpt1.stdout.on('data', function(d) {
+					avconv.stdin.write(d);
+				});
+				recpt1.stderr.on('data', function(d) {
+					util.log(d);
+				});
+				
+				avconv.stderr.on('data', function(d) {
+					util.log(d);
+				});
+				
+				avconv.on('exit', function(code) {
+					setTimeout(function() { response.end(); }, 1000);
+				});
+				
+				request.on('close', function() {
+					// チューナーのロックを解除
+					try {
+						chinachu.unlockTunerSync(tuner);
+						util.log('UNLOCK: ' + tuner.name + ' (n=' + tuner.n + ')');
+					} catch (e) {
+						util.log(e);
+					}
+					
+					avconv.stdout.removeAllListeners('data');
+					avconv.stderr.removeAllListeners('data');
+					avconv.kill('SIGKILL');
+				});
+				
+				children.push(avconv);// 安全対策
+			}
 			
-			avconv.stderr.on('data', function(d) {
-				util.log(d);
-			});
-			
-			avconv.on('exit', function(code) {
-				setTimeout(function() { response.end(); }, 1000);
-			});
-			
-			request.on('close', function() {
-				// チューナーのロックを解除
-				try {
-					chinachu.unlockTunerSync(tuner);
-					util.log('UNLOCK: ' + tuner.name + ' (n=' + tuner.n + ')');
-				} catch (e) {
-					util.log(e);
-				}
-
-				avconv.stdout.removeAllListeners('data');
-				avconv.stderr.removeAllListeners('data');
-				avconv.kill('SIGKILL');
-			});
-			
-			children.push(avconv);// 安全対策
 			children.push(recpt1);// 安全対策
 			
 			return;
