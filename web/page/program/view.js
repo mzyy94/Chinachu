@@ -163,7 +163,27 @@ P = Class.create(P, {
 					label  : 'ストリーミング再生',
 					icon   : './icons/film-youtube.png',
 					onClick: function() {
-						new chinachu.ui.Streamer(program.id);
+						var d = {"ext":"m2ts","c:v":"copy","c:a":"copy"};
+
+						if (Prototype.Browser.MobileSafari) {
+							var protocol = window.location.protocol.replace(":","");
+							var host = window.location.host;
+							if (program._isRecording) {
+								d.prefix = window.location.protocol + '//' + window.location.host + '/api/recording/' + program.id + '/';
+								window.open('vlc://' + protocol + '//' + host + '/api/recording/' + program.id + '/watch.xspf?' + Object.toQueryString(d));
+							} else {
+								d.prefix = window.location.protocol + '//' + window.location.host + '/api/recorded/' + program.id + '/';
+								window.open('vlc://' + protocol + '//' + host + '/api/recorded/' + program.id + '/watch.xspf?' + Object.toQueryString(d));
+							}
+						} else {
+							if (program._isRecording) {
+								d.prefix = window.location.protocol + '//' + window.location.host + '/api/recording/' + program.id + '/';
+								window.open('./api/recording/' + program.id + '/watch.xspf?' + Object.toQueryString(d));
+							} else {
+								d.prefix = window.location.protocol + '//' + window.location.host + '/api/recorded/' + program.id + '/';
+								window.open('./api/recorded/' + program.id + '/watch.xspf?' + Object.toQueryString(d));
+							}
+						}
 					}
 				})
 			});
