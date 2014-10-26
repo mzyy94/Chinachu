@@ -73,13 +73,22 @@ P = Class.create(P, {
 		
 		this.view.content.className = '';
 		this.view.content.update();
-		
-		this.grid = new flagrate.Grid({
-			multiSelect  : false,
-			disableSelect: true,
-			pagination   : true,
-			fill         : true,
-			cols: [
+		var cols;
+		if (Prototype.Browser.MobileSafari) {
+			cols = [
+				{
+					key  : 'category',
+					label: 'ジャンル',
+					width: 50,
+					align: 'center',
+				},
+				{
+					key  : 'title',
+					label: 'タイトル'
+				}
+			];
+		} else {
+			cols = [
 				{
 					key  : 'type',
 					label: '放送波',
@@ -114,6 +123,13 @@ P = Class.create(P, {
 					align: 'center',
 				}
 			],
+		}
+		this.grid = new flagrate.Grid({
+			multiSelect  : false,
+			disableSelect: true,
+			pagination   : true,
+			fill         : true,
+			cols: cols,
 			onClick: function(e, row) {
 				window.location.href = '#!/program/view/id=' + row.data.id + '/';
 			}.bind(this)
