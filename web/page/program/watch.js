@@ -142,10 +142,28 @@ P = Class.create(P, {
 					}.bind(this)
 				}
 			]
-		}).show();
+		});
+		
+		var d = {"ext":"m2ts","c:v":"copy","c:a":"copy"};
 		
 		if (Prototype.Browser.MobileSafari) {
-			modal.buttons[1].disable();
+			var protocol = window.location.protocol.replace(":","");
+			var host = window.location.host;
+			if (program._isRecording) {
+				d.prefix = window.location.protocol + '//' + window.location.host + '/api/recording/' + program.id + '/';
+				window.open('vlc://' + protocol + '//' + host + '/api/recording/' + program.id + '/watch.xspf?' + Object.toQueryString(d));
+			} else {
+				d.prefix = window.location.protocol + '//' + window.location.host + '/api/recorded/' + program.id + '/';
+				window.open('vlc://' + protocol + '//' + host + '/api/recorded/' + program.id + '/watch.xspf?' + Object.toQueryString(d));
+			}
+		} else {
+			if (program._isRecording) {
+				d.prefix = window.location.protocol + '//' + window.location.host + '/api/recording/' + program.id + '/';
+				window.open('./api/recording/' + program.id + '/watch.xspf?' + Object.toQueryString(d));
+			} else {
+				d.prefix = window.location.protocol + '//' + window.location.host + '/api/recorded/' + program.id + '/';
+				window.open('./api/recorded/' + program.id + '/watch.xspf?' + Object.toQueryString(d));
+			}
 		}
 		
 		this.form = new Hyperform({
