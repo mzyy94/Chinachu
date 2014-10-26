@@ -122,7 +122,7 @@ P = Class.create(P, {
 					width: 50,
 					align: 'center',
 				}
-			],
+			]
 		}
 		this.grid = new flagrate.Grid({
 			multiSelect  : false,
