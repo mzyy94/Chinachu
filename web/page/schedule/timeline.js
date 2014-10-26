@@ -145,7 +145,18 @@ P = Class.create(P, {
 			
 			ch.entity.observe('click', function() {
 				console.log(channel);
-				window.location.hash = '!/search/top/skip=1&chid=' + channel.id + '/';
+				
+				var d = {"ext":"m2ts","c:v":"copy","c:a":"copy"};
+				
+				if (Prototype.Browser.MobileSafari) {
+					var protocol = window.location.protocol.replace(":","");
+					var host = window.location.host;
+					d.prefix = window.location.protocol + '//' + window.location.host + '/api/channel/' + channel.id + '/';
+					window.open('vlc://' + protocol + '//' + host + '/api/channel/' + channel.id + '/watch.xspf?' + Object.toQueryString(d));
+				} else {
+					d.prefix = window.location.protocol + '//' + window.location.host + '/api/channel/' + channel.id + '/';
+					window.open('./api/channel/' + channel.id + '/watch.xspf?' + Object.toQueryString(d));
+				}
 			});
 			
 			channel.programs.forEach(function(program, j) {
