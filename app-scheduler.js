@@ -165,6 +165,19 @@ function scheduler() {
 	
 	util.log('RUNNING SCHEDULER.');
 	
+	// IDが重複しているかチェックするだけ
+	var idMap = {};
+	schedule.forEach(function (ch) {
+		ch.programs.forEach(function (p) {
+			if (idMap[p.id]) {
+				util.log('**WARNING**: ' + p.id + ' is duplicated!');
+				util.puts(JSON.stringify(idMap[p.id], null, '  '), JSON.stringify(p, null, '  '));
+			} else {
+				idMap[p.id] = p;
+			}
+		});
+	});
+	
 	reserves = JSON.parse(fs.readFileSync(RESERVES_DATA_FILE, { encoding: 'utf8' }) || '[]');//読み込む
 	
 	var typeNum = {};
@@ -194,7 +207,11 @@ function scheduler() {
 	
 	reserves.forEach(function (reserve) {
 		if (reserve.isManualReserved) {
-			matches.push(reserve);
+			if (reserve.start + 86400000 > Date.now()) {
+				reserve = chinachu.getProgramById(reserve.id, schedule) || reserve;
+				reserve.isManualReserved = true;
+				matches.push(reserve);
+			}
 			return;
 		}
 		var i, l;
@@ -434,8 +451,14 @@ function convertPrograms(p, ch) {
 		var startTime = startDate.getTime();
 		var endTime   = endDate.getTime();
 		
+		// 番組ID (v1.3)
+		var programId = '';
+		programId += ch.id.toLowerCase().replace('_', '');
+		programId += '-';
+		programId += parseInt(c.$.event_id, 10).toString(36);
+		
 		var programData = {
-			id        : ch.id.toLowerCase().replace('_', '') + '-' + parseInt(c.$.event_id, 10).toString(32),
+			id        : programId,
 			channel   : ch,
 			category  : c.category[1]._,
 			title     : title,
@@ -935,7 +958,7 @@ function getEpg() {
 			
 				// プロセスタイムアウト
 				execRecCmd(function () {
-					recProc.kill('SIGKILL');
+					recProc.kill('SIGTERM');
 				}, 1000 * (config.schedulerEpgRecordTime || 60), '[' + i + '] KILLWAIT');
 			
 				// キャンセル時
@@ -943,7 +966,7 @@ function getEpg() {
 				var onCancel = function () {
 				
 					isCancelled = true;
-					recProc.kill('SIGKILL');
+					recProc.kill('SIGTERM');
 				};
 			
 				removeListeners = function () {
@@ -1013,9 +1036,9 @@ function getEpg() {
 			return;
 		}
 		
-		var onGot = function () {
+		var onGot = function (channelNumber) {
 			setTimeout(function () {
-				r.splice(r.indexOf(ch.n), 1);
+				r.splice(r.indexOf(channelNumber), 1);
 				tick();
 			}, 250);
 		};
@@ -1043,7 +1066,7 @@ function getEpg() {
 			
 			c.push(ch.n);
 			r.push(ch.n);
-			get(ch.n, retryCount, onGot);
+			get(ch.n, retryCount, onGot.bind(null, ch.n));
 			
 			if (ch.type === 'GR') {
 				setTimeout(tick, 200);
